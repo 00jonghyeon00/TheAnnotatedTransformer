@@ -2,8 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
-import math, copy, time
-from torch.autograd import Variable
+import math, copy
 from einops import rearrange
 
 # Model Architecture
@@ -63,11 +62,12 @@ class LayerNorm(nn.Module):
 
 class SublayerConnection(nn.Module):
     def __init__(self, size, dropout):
-        super().__init__
-        ~
+        super().__init__()
+        self.norm = LayerNorm(size)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x, sublayer):
-        return ~    
+        return x + self.dropout(sublayer(self.norm(x)))
     
 # Decoder
 class Decoder(nn.Module):
@@ -137,5 +137,39 @@ class MultiHeadAttention(nn.Module):
         query, key, value = [rearrange(l(x), 'b n (h d) -> b h n d', n_heads=self.n_heads)
                              for l, x in zip(self.linears, (query, key, value))]
 
+        x, self.attn = attention(query, key, value, mask=mask, dropout=self.dropout)
 
+        x = rearrange(x, 'b h n d -> b n (h d)')
 
+        return self.linears[-1](x)
+    
+# Position-wise Feed-Forward Networks
+class PositionwiseFeedForward(nn.Module):
+    def __init__(self, d_model, d_ff, dropout=0.1):
+        super().__init__()
+        self.linear = nn.Sequential(nn.Linear(d_model, d_ff),
+                                    nn.ReLU(),
+                                    nn.Dropout(dropout),
+                                    nn.Linear(d_ff,d_model)
+                                    )
+        
+    def forward(self, x):
+        x = self.linear
+        return x
+
+# Embedding and Softmax
+class Embeddings(nn.Module):
+    def __init__(self, d_model, vocab):
+        super().__init__()
+        self.lut = nn.Embedding(vocab, d_model)
+        self.d_model = d_model
+    
+    def forward(self, x):
+        return self.lut(x) * math.sqrt(self.d_model)
+
+# Position Encoding
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, dropout, max_len=5000):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)
+        ~
