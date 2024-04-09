@@ -49,7 +49,7 @@ class Encoder(nn.Module):
         return self.norm(x)
 
 class LayerNorm(nn.Module):
-    def __init__(self, features, eps=1e-6)
+    def __init__(self, features, eps=1e-6):
         super().__init__()
         self.a_2 = nn.Parameter(torch.ones(features))
         self.b_2 = nn.Parameter(torch.zeros(features))   
@@ -68,7 +68,18 @@ class SublayerConnection(nn.Module):
 
     def forward(self, x, sublayer):
         return x + self.dropout(sublayer(self.norm(x)))
+
+class EncoderLayer(nn.Module):
+    def __init__(self, size, self_attn, feed_forward, dropout):
+        super().__init__()
+        self.self_attn = self_attn
+        self.feed_forward = feed_forward
+        self.sublayer = clones(SublayerConnection(size, dropout), 2)
+        self.size = size
     
+    def forward(self, x, mask):
+        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, mask))
+        return self.sublayer[1](x, self.feed_forward)
 # Decoder
 class Decoder(nn.Module):
     def __init__(self, layer, N):
@@ -172,4 +183,34 @@ class PositionalEncoding(nn.Module):
     def __init__(self, d_model, dropout, max_len=5000):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
-        ~
+        
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2) *
+                             -(math.log(10000.0) / d_model))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0)
+        self.register_buffer('pe',pe)
+
+def make_model(src_vocab, tgt_vocab, N=6,
+               d_model=512, d_ff=2048, n_heads=8, dropout=0.1):
+    c = copy.deepcopy
+    attn = MultiHeadAttention(n_heads, d_model)
+    ff = PositionwiseFeedForward(d_model, d_ff, dropout)
+    position = PositionalEncoding(d_model, dropout)
+    model = EncoderDecoder(
+        Encoder(EncoderLayer(d_model, c(attn), c(ff), dropout), N),
+        Decoder(DecoderLayer(d_model, c(attn), c(attn), c(ff), dropout), N),
+        nn.Sequential(Embeddings(d_model, src_vocab), c(position)),
+        nn.Sequential(Embeddings(d_model, tgt_vocab), c(position)),
+        Generator(d_model, tgt_vocab)
+        )
+    
+    for p in model.parameters():
+        if p.dim() > 1:
+            nn.init.xavier_uniform(p)
+    return model
+
+Ex_model = make_model(10, 10, 2)
+print(Ex_model)
