@@ -210,6 +210,3 @@ def make_model(src_vocab, tgt_vocab, N=6,
     for p in model.parameters():
         if p.dim() > 1:
             nn.init.xavier_uniform_(p)
-
-Ex_model = make_model(10, 10, 2)
-print(Ex_model)
