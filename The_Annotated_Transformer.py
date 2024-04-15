@@ -165,8 +165,7 @@ class PositionwiseFeedForward(nn.Module):
                                     )
         
     def forward(self, x):
-        x = self.linear
-        return x
+        return self.linear(x)
 
 # Embedding and Softmax
 class Embeddings(nn.Module):
@@ -193,6 +192,7 @@ class PositionalEncoding(nn.Module):
         pe = pe.unsqueeze(0)
         self.register_buffer('pe',pe)
 
+# Full Model
 def make_model(src_vocab, tgt_vocab, N=6,
                d_model=512, d_ff=2048, n_heads=8, dropout=0.1):
     c = copy.deepcopy
@@ -209,8 +209,7 @@ def make_model(src_vocab, tgt_vocab, N=6,
     
     for p in model.parameters():
         if p.dim() > 1:
-            nn.init.xavier_uniform(p)
-    return model
+            nn.init.xavier_uniform_(p)
 
 Ex_model = make_model(10, 10, 2)
 print(Ex_model)
